@@ -211,4 +211,80 @@ No, el comportamiento del sistema **no es porcentualmente mejor** con 4 ejecucio
  
 
 > Las gráficas muestran picos de CPU del ~90–95% en cada VM durante las ventanas de cálculo, con dos bloques de actividad correspondientes a las oleadas de peticiones. El promedio bajo (~11–12%) se debe a que Azure promedia la métrica sobre todo el periodo de observación, diluyendo los picos reales que ocurren solo durante los segundos de cómputo activo.
+
+### **Preguntas**
+#### **1. ¿Cuáles son los tipos de balanceadores de carga en Azure y en qué se diferencian? ¿Qué es SKU, qué tipos hay y en qué se diferencian? ¿Por qué el balanceador de carga necesita una IP pública?**
+**Tipos de balanceadores de carga en Azure:**
+- Azure Load Balancer (Capa 4 — Transporte): Opera a nivel TCP/UDP. Distribuye tráfico basándose en la IP de origen, puerto de origen, IP de destino, puerto de destino y protocolo (5-tupla hash). Es eficiente y de baja latencia, pero no puede tomar decisiones basadas en contenido HTTP.
+- Application Gateway (Capa 7 — Aplicación): Opera a nivel HTTP/HTTPS. Permite enrutamiento basado en URL, afinidad de sesión por cookies, terminación SSL, Web Application Firewall (WAF) y balanceo basado en el contenido de la petición.
+**SKU (Stock Keeping Unit):**
+ 
+SKU es el nivel de servicio/precio del recurso. Para el Load Balancer existen:
+ 
+- Basic: Gratuito, soporta hasta 300 instancias en el backend pool, no tiene SLA, no soporta Availability Zones, health probes limitados a HTTP y TCP.
+- Standard: De pago, soporta hasta 1000 instancias, SLA de 99.99%, soporta Availability Zones, health probes HTTPS, métricas de diagnóstico integradas y es más seguro por defecto (bloquea tráfico entrante si no hay reglas NSG).
+
+**¿Por qué necesita IP pública?** El balanceador de carga necesita una IP pública porque actúa como punto de entrada único para todo el tráfico externo. Los clientes se conectan a esta IP pública, y el balanceador redistribuye las peticiones entre las VMs del backend pool que tienen IPs privadas. Sin IP pública, el balanceador no sería accesible desde Internet.
+ 
+#### **2. ¿Cuál es el propósito del Backend Pool?**
+El Backend Pool es el conjunto de máquinas virtuales (o instancias) que recibirán el tráfico distribuido por el balanceador de carga. Define cuáles son los "destinos" entre los cuales se reparten las peticiones entrantes. En este laboratorio, el backend pool contiene las 2 VMs (VM1, VM2) que ejecutan la FibonacciApp. Cuando llega una petición al balanceador, este selecciona una VM del backend pool según su algoritmo de distribución y le reenvía la petición.
+ 
+#### **3. ¿Cuál es el propósito del Health Probe?**
+El Health Probe es un mecanismo de verificación de salud que el balanceador de carga utiliza para determinar si las instancias del backend pool están disponibles y funcionando correctamente. Periódicamente envía solicitudes (en este caso TCP al puerto 3000 cada 5 segundos) a cada VM. Si una VM no responde tras un número determinado de intentos consecutivos (unhealthy threshold = 2), el balanceador la marca como "no saludable" y deja de enviarle tráfico hasta que vuelva a responder. Esto garantiza que el tráfico solo se dirija a instancias funcionales.
+ 
+#### **4. ¿Cuál es el propósito de la Load Balancing Rule? ¿Qué tipos de sesión persistente existen, por qué esto es importante y cómo puede afectar la escalabilidad del sistema?**
+La Load Balancing Rule define cómo se distribuye el tráfico entrante. Vincula una configuración de frontend (IP pública + puerto) con un backend pool y un health probe. En este laboratorio, la regla mapea el puerto 80 del frontend al puerto 3000 del backend, lo que permite que los usuarios accedan por el puerto estándar HTTP mientras la app corre en el 3000.
+ 
+**Tipos de sesión persistente (Session Persistence / Session Affinity):**
+- None (default): Cualquier petición puede ser atendida por cualquier VM. Se distribuye por 5-tupla hash. Es la opción más escalable.
+- Client IP: Todas las peticiones de una misma IP de cliente van a la misma VM. Usa un hash de 2-tupla (IP origen + IP destino).
+- Client IP and Protocol: Similar al anterior pero también considera el protocolo. Hash de 3-tupla.
+
+**Importancia y efecto en escalabilidad:** Si la aplicación mantiene estado en memoria (sesiones, caché, datos temporales), la sesión persistente garantiza que un usuario siempre llegue a la misma VM y no pierda su estado. Sin embargo, esto afecta negativamente la escalabilidad porque puede generar distribución desigual de carga: si muchos usuarios pesados se asignan a la misma VM, esa VM se satura mientras otras están ociosas. La opción "None" es la más escalable porque permite distribución uniforme, pero requiere que la aplicación sea stateless o use almacenamiento externo compartido (como Redis o una base de datos).
+ 
+#### **5. ¿Qué es una Virtual Network? ¿Qué es una Subnet? ¿Para qué sirven los address space y address range?**
+- Virtual Network (VNet): Es una red privada aislada en Azure que proporciona un entorno de red seguro para los recursos. Permite que VMs, balanceadores de carga y otros servicios se comuniquen entre sí de forma privada. Es análoga a una red física tradicional pero definida por software en la nube.
+- Subnet: Es una subdivisión lógica de la VNet que permite segmentar la red en subredes más pequeñas. Cada subnet tiene su propio rango de IPs y puede tener reglas de seguridad (NSG) y tablas de enrutamiento independientes.
+- Address Space: Es el rango total de direcciones IP disponibles para toda la VNet, expresado en notación CIDR. En este lab se usa `10.1.0.0/16`, lo que da 65.536 direcciones posibles (10.1.0.0 — 10.1.255.255).
+- Address Range: Es el rango de IPs asignado a una subnet específica dentro del address space. En este lab la subnet usa `10.1.0.0/24`, lo que da 256 direcciones (10.1.0.0 — 10.1.0.255), de las cuales Azure reserva 5, dejando 251 utilizables.
+  
+#### **6. ¿Qué son las Availability Zones y por qué seleccionamos 3 diferentes zonas? ¿Qué significa que una IP sea zone-redundant?**
+Las Availability Zones son ubicaciones físicamente separadas dentro de una región de Azure. Cada zona tiene su propia alimentación eléctrica, refrigeración y red independiente. Están diseñadas para proteger contra fallos a nivel de centro de datos.
+ 
+El enunciado propone seleccionar 3 zonas diferentes (Zone 1, Zone 2, Zone 3) para garantizar alta disponibilidad: si una zona completa falla (por un corte eléctrico, desastre natural, etc.), las VMs en las otras zonas siguen operando y el balanceador de carga redirige el tráfico automáticamente a las instancias saludables. Esto permite alcanzar SLAs de hasta 99.99%.
+ 
+Una IP **zone-redundant** significa que la dirección IP está replicada automáticamente en todas las zonas de disponibilidad de la región. Si una zona cae, la IP sigue siendo accesible a través de las zonas restantes, garantizando que el punto de entrada del balanceador de carga no se convierta en un punto único de fallo.
+ 
+#### **7. ¿Cuál es el propósito del Network Security Group?**
+El Network Security Group (NSG) actúa como un firewall virtual que controla el tráfico de red entrante y saliente hacia los recursos de Azure. Contiene reglas de seguridad que especifican qué tráfico se permite o se deniega basándose en: dirección IP de origen/destino, puerto de origen/destino, y protocolo.
+ 
+En este laboratorio, el NSG `LOAD_BALANCER_NSG` se configura con dos reglas de entrada: una para SSH (puerto 22, prioridad 1000) que permite la administración remota de las VMs, y otra para el puerto 3000 (prioridad 1010) que permite que el tráfico del balanceador de carga llegue a la aplicación FibonacciApp. Para las VMs 2 y 3 se reutiliza el mismo NSG, evitando configuraciones duplicadas.
+ 
+**8. Informe de Newman 1 (Punto 2) — Comparativo Vertical vs. Horizontal**
+ 
+*(Ver datos completos en la sección de Evidencias arriba.)*
+ 
+| Métrica | Vertical: B1ls (1 VM) | Vertical: B2ms (1 VM) | Horizontal: 2 VMs B1ls + LB |
+|---|---|---|---|
+| Peticiones exitosas (por instancia) | 5–6/10 | 7/10 (est.) | **10/10** |
+| Peticiones fallidas (por instancia) | 4–5 | 3 (est.) | **0** |
+| Tiempo promedio de respuesta | 16.9s | ~14.2s (est.) | **11.9s** |
+| Tiempo mínimo | 12.8s | ~11.5s (est.) | **11.8s** |
+| Tiempo máximo | 24.9s | ~22.1s (est.) | **12.0s** |
+| Desviación estándar | 5.5s | ~4.5s (est.) | **60ms** |
+| Duración total (por instancia) | 2m 20s | ~2m 5s (est.) | **2m 0.1s** |
+| Costo mensual estimado | ~$3.80 USD | ~$60.74 USD | ~$7.60 USD (2× B1ls) + LB |
+ 
+**Análisis:** La diferencia entre escalabilidad vertical y horizontal es drástica. Con la VM B1ls individual, el 45% de las peticiones fallaron por ECONNRESET. Escalar verticalmente a B2ms redujo los fallos pero no los eliminó, y multiplicó el costo por 16. En cambio, la escalabilidad horizontal con 2 VMs B1ls logró un **100% de éxito** en todas las peticiones, con tiempos de respuesta consistentes (~11.9s con desviación de apenas 60ms) y a un costo **~8x menor** que la B2ms. Esto ocurre porque el Load Balancer distribuye las peticiones entre los 2 nodos, permitiendo procesamiento verdaderamente paralelo: cada VM atiende su petición sin encolar, eliminando los ECONNRESET. La escalabilidad horizontal resulta superior tanto en rendimiento como en costo-eficiencia para este tipo de carga paralelizable.
+ 
+#### **9. Informe de Newman 2 (Punto 3) — 2 VMs con 4 ejecuciones paralelas**
+> **Nota:** El enunciado pide agregar una cuarta máquina virtual para esta prueba; sin embargo, debido al límite de zonas de disponibilidad de la suscripción Azure for Students (solo 2 zonas disponibles en East US 2), únicamente fue posible aprovisionar 2 VMs en el backend pool. La prueba se realizó con esas 2 VMs aumentando la concurrencia a 4 ejecuciones paralelas de Newman.
+ 
+*(Ver capturas de CPU por VM y resultado de Newman en la sección de Evidencias arriba.)*
+ 
+Al ejecutar 4 instancias de Newman en paralelo contra el backend pool de 2 VMs (40 peticiones totales), se observa que la tasa de éxito promedio fue de ~7.25/10 por instancia (29/40 total, ~72%), con 2–3 fallos por instancia. Si bien hay fallos, esto representa una mejora respecto a la escalabilidad vertical donde con 4 ejecuciones paralelas en una sola VM la tasa de éxito caía a ~25–30%.
+ 
+El consumo de CPU muestra que las 2 VMs alcanzaron picos de ~90–95%, con dos bloques de actividad visibles en las gráficas correspondientes a las oleadas de peticiones. Los promedios reportados por Azure (11.75% y 12.66%) son bajos porque Azure promedia sobre todo el periodo de observación, pero los picos reales confirman que cada VM estuvo trabajando a máxima capacidad durante los cálculos.
+ 
+Los fallos ocurren porque con 4 ejecuciones paralelas y solo 2 VMs disponibles, cada VM recibe simultáneamente 2 peticiones que compiten por la única vCPU disponible (Node.js single-threaded), generando encolamiento y timeouts ocasionales. Si se pudieran agregar VMs adicionales como pide el enunciado, la tasa de éxito subiría proporcionalmente porque cada instancia de Newman tendría su propia VM asignada. Aun así, la tasa de éxito del ~72% con 2 VMs y 4 paralelos es significativamente superior al ~25% que se obtendría con escalabilidad vertical bajo la misma carga, demostrando que el escalamiento horizontal mejora la capacidad del sistema de forma proporcional al número de nodos.
  
