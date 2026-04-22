@@ -176,51 +176,39 @@ No, el comportamiento del sistema **no es porcentualmente mejor** con 4 ejecucio
 ---
 ## **Parte 2 - Escalabilidad Horizontal**
 ### Evidencias
-#### Informe Newman 1 — 3 VMs + Load Balancer (2 ejecuciones paralelas)
+#### Informe Newman 1 — 2 VMs + Load Balancer (2 ejecuciones paralelas)
  
 **Resultado Newman — Tres instancias:**
 ![alt text](images/evidences2/v1.png)
 ![alt text](images/evidences2/v2.png)
 ![alt text](images/evidences2/v3.png)
  
-**Consumo de CPU durante la prueba (3 VMs):**
+**Consumo de CPU durante la prueba (2 VMs):**
 | VM | CPU Avg | Pico | Comportamiento |
 |---|---|---|---|
 | VM1 | 0.52% | ~0.7% | Casi sin carga — el LB no le envió peticiones |
 | VM2 | 8.21% | ~90% | Absorbió la mayoría de peticiones |
-| VM3 | ~4.10% | ~45% | Recibió peticiones parcialmente |
  
 <img src="images/evidences2/cpu1_1.png" width="600">
-![CPU VM1 - 3 VMs](images/part2-cpu-vm1-3vms.png)
-<!-- Insertar captura aquí -->
- 
-![CPU VM2 - 3 VMs](images/part2-cpu-vm2-3vms.png)
-<!-- Insertar captura aquí -->
- 
+<img src="images/evidences2/cpu2_1.png" width="600">
+
 > **Nota:** La distribución desigual de CPU (VM1 con 0.52% vs VM2 con 8.21%) se debe al algoritmo de hash de 5-tupla del balanceador de carga. Dado que las dos instancias de Newman se ejecutan desde la misma máquina (misma IP de origen), el hash puede sesgar las peticiones hacia ciertos nodos. A pesar de esto, el **100% de las peticiones fueron exitosas** porque el balanceo permite que cada VM procese sus peticiones sin el encolamiento crítico que ocurría con una sola VM.
 
-#### **Informe Newman 2 — 3 VMs + Load Balancer (4 ejecuciones paralelas)**
+#### **Informe Newman 1 — 2 VMs + Load Balancer (4 ejecuciones paralelas)**
 > **Nota:** El enunciado pide agregar una cuarta máquina virtual para esta prueba, sin embargo debido al límite de cuota de la suscripción Azure for Students no fue posible aprovisionar una cuarta VM. La prueba se realizó con las mismas 3 VMs del backend pool aumentando la concurrencia a 4 ejecuciones paralelas de Newman.
  
 **Resultado Newman (muestra representativa de una instancia):**
 ![alt text](images/evidences2/vTest4.png)
  
-**Consumo de CPU por VM (3 VMs, 4 ejecuciones paralelas):**
- 
+**Consumo de CPU por VM (2 VMs, 4 ejecuciones paralelas):**
 | VM | CPU Avg | Pico |
 |---|---|---|
 | VM1 | 11.75% | ~95% |
 | VM2 | 12.66% | ~90% |
-| VM3 | 11.20% | ~90% |
+
+<img src="images/evidences2/cpu1_2.png" width="600">
+<img src="images/evidences2/cpu2_2.png" width="600">
  
-![CPU VM1 - 4 paralelos](images/part2-cpu-vm1-4vms.png)
-<!-- Insertar captura aquí -->
- 
-![CPU VM2 - 4 paralelos](images/part2-cpu-vm2-4vms.png)
-<!-- Insertar captura aquí -->
- 
-![CPU VM3 - 4 paralelos](images/part2-cpu-vm3-4vms.png)
-<!-- Insertar captura aquí -->
- 
+
 > Las gráficas muestran picos de CPU del ~90–95% en cada VM durante las ventanas de cálculo, con dos bloques de actividad correspondientes a las oleadas de peticiones. El promedio bajo (~11–12%) se debe a que Azure promedia la métrica sobre todo el periodo de observación, diluyendo los picos reales que ocurren solo durante los segundos de cómputo activo.
  
