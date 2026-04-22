@@ -178,25 +178,12 @@ No, el comportamiento del sistema **no es porcentualmente mejor** con 4 ejecucio
 ### Evidencias
 #### Informe Newman 1 — 3 VMs + Load Balancer (2 ejecuciones paralelas)
  
-**Resultado Newman — Instancia 1:**
- 
-![Newman Horizontal Inst1](images/part2-newman-3vms-inst1.png)
-<!-- Insertar captura aquí -->
- 
-| Métrica | Instancia 1 | Instancia 2 |
-|---|---|---|
-| Iteraciones ejecutadas | 10 | 10 |
-| Requests exitosos | **10/10** | **10/10** |
-| Requests fallidos | 0 | 0 |
-| Tiempo promedio de respuesta | 11.9s | 12.1s |
-| Tiempo mínimo | 11.8s | 11.7s |
-| Tiempo máximo | 12.0s | 12.4s |
-| Desviación estándar | 60ms | 180ms |
-| Duración total | 2m 0.1s | 2m 1.8s |
-| Datos recibidos | 2.09 MB | 2.09 MB |
+**Resultado Newman — Tres instancias:**
+![alt text](images/evidences2/v1.png)
+![alt text](images/evidences2/v2.png)
+![alt text](images/evidences2/v3.png)
  
 **Consumo de CPU durante la prueba (3 VMs):**
- 
 | VM | CPU Avg | Pico | Comportamiento |
 |---|---|---|---|
 | VM1 | 0.52% | ~0.7% | Casi sin carga — el LB no le envió peticiones |
@@ -215,20 +202,7 @@ No, el comportamiento del sistema **no es porcentualmente mejor** con 4 ejecucio
 > **Nota:** El enunciado pide agregar una cuarta máquina virtual para esta prueba, sin embargo debido al límite de cuota de la suscripción Azure for Students no fue posible aprovisionar una cuarta VM. La prueba se realizó con las mismas 3 VMs del backend pool aumentando la concurrencia a 4 ejecuciones paralelas de Newman.
  
 **Resultado Newman (muestra representativa de una instancia):**
- 
-![Newman 4 paralelos](images/part2-newman-4vms.png)
-<!-- Insertar captura aquí -->
- 
-| Métrica | Instancia 1 | Instancia 2 | Instancia 3 | Instancia 4 |
-|---|---|---|---|---|
-| Iteraciones ejecutadas | 10 | 10 | 10 | 10 |
-| Requests exitosos | 7/10 | 8/10 | 7/10 | 7/10 |
-| Requests fallidos | 3 | 2 | 3 | 3 |
-| Tiempo promedio de respuesta | 32.2s | 28.5s | 31.5s | 33.1s |
-| Tiempo mínimo | 11.9s | 12.0s | 11.8s | 12.1s |
-| Tiempo máximo | 59.5s | 52.3s | 58.8s | 60.1s |
-| Desviación estándar | 21.1s | 18.4s | 20.5s | 21.6s |
-| Duración total | 3m 30.8s | 3m 12.5s | 3m 28.6s | 3m 33.1s |
+![alt text](images/evidences2/vTest4.png)
  
 **Consumo de CPU por VM (3 VMs, 4 ejecuciones paralelas):**
  
