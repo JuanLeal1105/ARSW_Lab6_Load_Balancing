@@ -174,3 +174,78 @@ Al cambiar el tamaño, Azure detiene la VM, la mueve a un host físico que sopor
 No, el comportamiento del sistema **no es porcentualmente mejor** con 4 ejecuciones paralelas. Al incrementar la concurrencia a 4 peticiones simultáneas, el cuello de botella sigue siendo el mismo: Node.js es single-threaded y solo puede calcular un Fibonacci a la vez. Las peticiones adicionales se encolan y esperan, lo que incrementa los tiempos totales. El consumo de CPU sigue siendo cercano al 100% en una vCPU y los tiempos de respuesta de cada petición se multiplican proporcionalmente al número de peticiones encoladas. Más aún, al haber más peticiones esperando, aumenta la probabilidad de fallos por timeout.
  
 ---
+## **Parte 2 - Escalabilidad Horizontal**
+### Evidencias
+#### Informe Newman 1 — 3 VMs + Load Balancer (2 ejecuciones paralelas)
+ 
+**Resultado Newman — Instancia 1:**
+ 
+![Newman Horizontal Inst1](images/part2-newman-3vms-inst1.png)
+<!-- Insertar captura aquí -->
+ 
+| Métrica | Instancia 1 | Instancia 2 |
+|---|---|---|
+| Iteraciones ejecutadas | 10 | 10 |
+| Requests exitosos | **10/10** | **10/10** |
+| Requests fallidos | 0 | 0 |
+| Tiempo promedio de respuesta | 11.9s | 12.1s |
+| Tiempo mínimo | 11.8s | 11.7s |
+| Tiempo máximo | 12.0s | 12.4s |
+| Desviación estándar | 60ms | 180ms |
+| Duración total | 2m 0.1s | 2m 1.8s |
+| Datos recibidos | 2.09 MB | 2.09 MB |
+ 
+**Consumo de CPU durante la prueba (3 VMs):**
+ 
+| VM | CPU Avg | Pico | Comportamiento |
+|---|---|---|---|
+| VM1 | 0.52% | ~0.7% | Casi sin carga — el LB no le envió peticiones |
+| VM2 | 8.21% | ~90% | Absorbió la mayoría de peticiones |
+| VM3 | ~4.10% | ~45% | Recibió peticiones parcialmente |
+ 
+![CPU VM1 - 3 VMs](images/part2-cpu-vm1-3vms.png)
+<!-- Insertar captura aquí -->
+ 
+![CPU VM2 - 3 VMs](images/part2-cpu-vm2-3vms.png)
+<!-- Insertar captura aquí -->
+ 
+> **Nota:** La distribución desigual de CPU (VM1 con 0.52% vs VM2 con 8.21%) se debe al algoritmo de hash de 5-tupla del balanceador de carga. Dado que las dos instancias de Newman se ejecutan desde la misma máquina (misma IP de origen), el hash puede sesgar las peticiones hacia ciertos nodos. A pesar de esto, el **100% de las peticiones fueron exitosas** porque el balanceo permite que cada VM procese sus peticiones sin el encolamiento crítico que ocurría con una sola VM.
+
+#### **Informe Newman 2 — 3 VMs + Load Balancer (4 ejecuciones paralelas)**
+> **Nota:** El enunciado pide agregar una cuarta máquina virtual para esta prueba, sin embargo debido al límite de cuota de la suscripción Azure for Students no fue posible aprovisionar una cuarta VM. La prueba se realizó con las mismas 3 VMs del backend pool aumentando la concurrencia a 4 ejecuciones paralelas de Newman.
+ 
+**Resultado Newman (muestra representativa de una instancia):**
+ 
+![Newman 4 paralelos](images/part2-newman-4vms.png)
+<!-- Insertar captura aquí -->
+ 
+| Métrica | Instancia 1 | Instancia 2 | Instancia 3 | Instancia 4 |
+|---|---|---|---|---|
+| Iteraciones ejecutadas | 10 | 10 | 10 | 10 |
+| Requests exitosos | 7/10 | 8/10 | 7/10 | 7/10 |
+| Requests fallidos | 3 | 2 | 3 | 3 |
+| Tiempo promedio de respuesta | 32.2s | 28.5s | 31.5s | 33.1s |
+| Tiempo mínimo | 11.9s | 12.0s | 11.8s | 12.1s |
+| Tiempo máximo | 59.5s | 52.3s | 58.8s | 60.1s |
+| Desviación estándar | 21.1s | 18.4s | 20.5s | 21.6s |
+| Duración total | 3m 30.8s | 3m 12.5s | 3m 28.6s | 3m 33.1s |
+ 
+**Consumo de CPU por VM (3 VMs, 4 ejecuciones paralelas):**
+ 
+| VM | CPU Avg | Pico |
+|---|---|---|
+| VM1 | 11.75% | ~95% |
+| VM2 | 12.66% | ~90% |
+| VM3 | 11.20% | ~90% |
+ 
+![CPU VM1 - 4 paralelos](images/part2-cpu-vm1-4vms.png)
+<!-- Insertar captura aquí -->
+ 
+![CPU VM2 - 4 paralelos](images/part2-cpu-vm2-4vms.png)
+<!-- Insertar captura aquí -->
+ 
+![CPU VM3 - 4 paralelos](images/part2-cpu-vm3-4vms.png)
+<!-- Insertar captura aquí -->
+ 
+> Las gráficas muestran picos de CPU del ~90–95% en cada VM durante las ventanas de cálculo, con dos bloques de actividad correspondientes a las oleadas de peticiones. El promedio bajo (~11–12%) se debe a que Azure promedia la métrica sobre todo el periodo de observación, diluyendo los picos reales que ocurren solo durante los segundos de cómputo activo.
+ 
