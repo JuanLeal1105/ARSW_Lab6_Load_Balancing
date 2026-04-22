@@ -190,6 +190,7 @@ No, el comportamiento del sistema **no es porcentualmente mejor** con 4 ejecucio
 | VM2 | 8.21% | ~90% | Absorbió la mayoría de peticiones |
 | VM3 | ~4.10% | ~45% | Recibió peticiones parcialmente |
  
+<img src="images/evidences2/cpu1_1.png" width="600">
 ![CPU VM1 - 3 VMs](images/part2-cpu-vm1-3vms.png)
 <!-- Insertar captura aquí -->
  
