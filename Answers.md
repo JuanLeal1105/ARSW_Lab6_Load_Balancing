@@ -288,3 +288,5 @@ El consumo de CPU muestra que las 2 VMs alcanzaron picos de ~90–95%, con dos b
  
 Los fallos ocurren porque con 4 ejecuciones paralelas y solo 2 VMs disponibles, cada VM recibe simultáneamente 2 peticiones que compiten por la única vCPU disponible (Node.js single-threaded), generando encolamiento y timeouts ocasionales. Si se pudieran agregar VMs adicionales como pide el enunciado, la tasa de éxito subiría proporcionalmente porque cada instancia de Newman tendría su propia VM asignada. Aun así, la tasa de éxito del ~72% con 2 VMs y 4 paralelos es significativamente superior al ~25% que se obtendría con escalabilidad vertical bajo la misma carga, demostrando que el escalamiento horizontal mejora la capacidad del sistema de forma proporcional al número de nodos.
  
+## **Diagrama Despliegue Solución**
+![alt text](Azure_Lab9.png)
